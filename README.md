@@ -1,4 +1,4 @@
-#本文是AI寫的#
+# 本文是AI寫的
 
 # 防沉迷（Anti-Addiction）
 
