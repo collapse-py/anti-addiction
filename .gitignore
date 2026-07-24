@@ -1,0 +1,7 @@
+.gradle/
+build/
+run/
+*.class
+*.jar
+*.war
+*.ear

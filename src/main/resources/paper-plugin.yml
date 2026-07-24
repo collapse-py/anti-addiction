@@ -1,0 +1,12 @@
+main: net.collapse.antiaddiction.AntiaddictionMod
+name: anti-addiction
+version: 1.0.0
+authors: [MCreator]
+bootstrapper: net.collapse.antiaddiction.AntiaddictionModBootstrap
+website: https://mcreator.net
+api-version: 26.1
+
+commands:
+  antiaddiction:
+    description: Anti-addiction plugin management
+    usage: /<command> <sub-command>

@@ -1,0 +1,110 @@
+plugins {
+    id "java"
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+base.archivesName = "plugin"
+
+def toolsDir = layout.projectDirectory.dir("build/tools")
+def runDir = layout.projectDirectory.dir("run")
+def pluginsDir = runDir.dir("plugins")
+def paperJar = runDir.file("paper.jar")
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "papermc"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
+}
+
+dependencies {
+    compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
+    implementation("com.mysql:mysql-connector-j:8.0.33")
+    implementation("redis.clients:jedis:5.1.0")
+}
+
+// 🟢 修正 1：改回 Java 25，以滿足 paper-api 26.1.2 的要求
+def javaVersion = JavaVersion.VERSION_25
+
+java {
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion.toString())
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = javaVersion.toString() as Integer
+}
+
+// 🟢 修正 2：清空 relocate 語句，避開 Shadow 插件的 ASM 解析器崩潰
+shadowJar {
+    archiveClassifier.set('') 
+    // 不執行 relocate，讓 Shadow 只做純粹的依賴合併，跳過位元組碼改寫
+}
+
+tasks.build {
+    dependsOn tasks.shadowJar
+}
+
+tasks.register('prepareDirs') {
+    group 'paper'
+    doLast {
+        toolsDir.asFile.mkdirs()
+        pluginsDir.asFile.mkdirs()
+    }
+}
+
+tasks.register('downloadPaper') {
+    group 'paper'
+    dependsOn 'prepareDirs'
+
+    doLast {
+        if (!paperJar.asFile.exists()) {
+            new URL("https://fill-data.papermc.io/v1/objects/1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7/paper-26.1.2-74.jar").withInputStream { i ->
+                paperJar.asFile.withOutputStream { it << i }
+            }
+        }
+    }
+}
+
+tasks.register('buildPaper', Exec) {
+    group 'paper'
+    dependsOn tasks.downloadPaper
+
+    workingDir = runDir.asFile
+    commandLine = ["java", "-jar", paperJar.asFile.absolutePath, "--rev", "26.1.2"]
+    onlyIf { !paperJar.asFile.exists() }
+}
+
+tasks.register('copyPlugin', Copy) {
+    group 'paper'
+    dependsOn tasks.shadowJar
+
+    from tasks.shadowJar.archiveFile
+    into pluginsDir
+}
+
+tasks.register('runPaperServer', Exec) {
+    group 'paper'
+    dependsOn tasks.build
+    dependsOn tasks.copyPlugin
+
+    workingDir = file("run")
+    commandLine = ["java", "-jar", paperJar.asFile.absolutePath] as List<String>
+}
+
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+    filesMatching('paper-plugin.yml') {
+        expand props
+    }
+}
+
+apply from: 'mcreator.gradle'

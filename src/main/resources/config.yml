@@ -1,0 +1,16 @@
+playtime-limit: 144000
+cooldown-duration: 36000
+persistence-interval: 60
+mysql:
+  enabled: false
+  host: localhost
+  port: 3306
+  database: antiaddiction
+  username: root
+  password: ''
+redis:
+  enabled: false
+  host: localhost
+  port: 6379
+antiaddiction-enabled: true
+whitelist: []
